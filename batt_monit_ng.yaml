@@ -1,0 +1,203 @@
+# yamllint disable rule:line-length
+---
+blueprint:
+  name: "AWTRIX NG Battery Monitoring 🔋"
+  description: |-
+    **Blueprint version: 1.0.0**
+
+    Display home battery charge level and mode on one or more AWTRIX NG devices.
+
+    ## Requirements
+
+    - Home Assistant 2024.11 or newer
+    - AWTRIX NG with MQTT and Home Assistant discovery enabled
+    - Battery state of charge and mode sensors available
+
+    AWTRIX NG migration guide:
+      https://blueforcer.github.io/awtrix-ng/guides/migrating-from-awtrix3/
+
+    Updates for this blueprint:
+      https://raw.githubusercontent.com/yourusername/home-assistant/main/blueprints/automation/awtrix_ng_battery_monitoring.yaml
+
+  domain: automation
+  author: Your Name
+  homeassistant:
+    min_version: 2024.11.0
+  input:
+    required:
+      name: Required settings
+      icon: mdi:alert
+      input:
+        awtrix:
+          name: AWTRIX NG devices
+          description: Select the AWTRIX NG device(s) that should show the battery status.
+          selector:
+            device:
+              filter:
+                - integration: mqtt
+                  manufacturer: Blueforcer
+                  model: AWTRIX NG
+              multiple: true
+        battery_charge_entity:
+          name: Battery charge level sensor
+          description: Select the sensor entity that provides the battery state of charge (0-100%).
+          selector:
+            entity:
+              domain: sensor
+        battery_mode_entity:
+          name: Battery mode sensor
+          description: Select the sensor entity that provides the battery operating mode (e.g., "Charge", "Discharge", "Idle").
+          selector:
+            entity:
+              domain: sensor
+    behavior:
+      name: Display behavior
+      icon: mdi:message-alert
+      collapsed: true
+      input:
+        app_name:
+          name: App name
+          description: The name of the app as shown on the AWTRIX device.
+          default: battery
+          selector:
+            text: {}
+        show_progress:
+          name: Show progress bar
+          description: Display a progress bar for the charge level.
+          default: true
+          selector:
+            boolean: {}
+        message_repeat:
+          name: Display refresh rate
+          description: How many times the display should refresh per change.
+          default: 1
+          selector:
+            number:
+              min: 1
+              max: 10
+              step: 1
+              mode: slider
+
+mode: restart
+
+variables:
+  device_ids: !input awtrix
+  app_name: !input app_name
+  battery_charge_entity: !input battery_charge_entity
+  battery_mode_entity: !input battery_mode_entity
+  show_progress: !input show_progress
+  message_repeat: !input message_repeat
+  device_prefixes: |-
+    {%- set result = namespace(items=[]) -%}
+    {%- for device_id in device_ids -%}
+      {%- set prefix_entities = device_entities(device_id) | select('search', 'mqtt_prefix') | list -%}
+      {%- if prefix_entities | length > 0 -%}
+        {%- set prefix = states(prefix_entities | first) -%}
+        {%- if prefix not in ['unknown', 'unavailable', 'none', ''] -%}
+          {%- set result.items = result.items + [prefix] -%}
+        {%- endif -%}
+      {%- endif -%}
+    {%- endfor -%}
+    {{ result.items | unique | list }}
+  charge: |-
+    {%- set charge_value = states(battery_charge_entity) | float(-1) -%}
+    {%- if charge_value >= 0 -%}
+      {{ (charge_value | round(0)) | int }}
+    {%- else -%}
+      -1
+    {%- endif -%}
+  mode: "{{ states(battery_mode_entity) | default('Unknown', true) }}"
+  icon: |-
+    {%- if charge < 0 -%}
+      13734
+    {%- elif mode == "Charge" -%}
+      {%- if charge > 85 -%}
+        32047
+      {%- elif charge > 69 -%}
+        32049
+      {%- elif charge > 51 -%}
+        32050
+      {%- elif charge > 34 -%}
+        32051
+      {%- elif charge > 17 -%}
+        32052
+      {%- else -%}
+        32053
+      {%- endif -%}
+    {%- elif mode == "Discharge" -%}
+      {%- if charge > 85 -%}
+        32059
+      {%- elif charge > 69 -%}
+        32058
+      {%- elif charge > 51 -%}
+        32057
+      {%- elif charge > 34 -%}
+        32056
+      {%- elif charge > 17 -%}
+        32055
+      {%- else -%}
+        32054
+      {%- endif -%}
+    {%- else -%}
+      {%- if charge > 90 -%}
+        13735
+      {%- elif charge > 70 -%}
+        13732
+      {%- elif charge > 40 -%}
+        13731
+      {%- elif charge > 10 -%}
+        13725
+      {%- else -%}
+        13734
+      {%- endif -%}
+    {%- endif -%}
+  payload: |-
+    {%- if charge >= 0 -%}
+      {%- set data = {
+        "text": charge ~ " %",
+        "icon": icon | int
+      } -%}
+      {%- if show_progress -%}
+        {%- set data = data | combine({"progress": charge | int}) -%}
+      {%- endif -%}
+      {%- set data = data | combine({"repeat": message_repeat | int}) -%}
+      {{ data | tojson }}
+    {%- else -%}
+      {{ '' }}
+    {%- endif -%}
+
+trigger:
+  - alias: Battery turned on
+    platform: state
+    entity_id: light.awtrix_xxxxxx_matrix
+    state: on
+    id: matrix_on
+  - alias: Charge level changes
+    platform: state
+    entity_id: !input battery_charge_entity
+    id: charge_changed
+  - alias: Mode changes
+    platform: state
+    entity_id: !input battery_mode_entity
+    id: mode_changed
+  - trigger: homeassistant
+    event: start
+    id: startup
+  - trigger: time_pattern
+    minutes: "/5"
+    id: refresh
+
+condition:
+  - condition: template
+    value_template: "{{ device_prefixes | length > 0 }}"
+
+action:
+  - repeat:
+      for_each: "{{ device_prefixes }}"
+      sequence:
+        - action: mqtt.publish
+          data:
+            qos: 0
+            retain: false
+            topic: "{{ repeat.item }}/cmd/apps/pushed/{{ app_name }}"
+            payload: "{{ payload }}"
