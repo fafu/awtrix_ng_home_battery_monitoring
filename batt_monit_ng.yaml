@@ -211,9 +211,9 @@ variables:
   payload: |-
     {%- if charge >= 0 -%}
       {%- set data = {
-        "text": charge ~ ",
-        "iconMode": icon_mode %",
-        "icon": icon | int
+        "text": charge ~ " %",
+        "icon": icon | int,
+        "iconMode": icon_mode
       } -%}
       {%- if show_progress -%}
         {%- set data = data | combine({"progress": charge | int}) -%}
