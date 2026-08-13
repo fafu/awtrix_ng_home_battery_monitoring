@@ -71,7 +71,6 @@ blueprint:
               max: 0
               step: 1
               mode: box
-              unit_of_measurement: "W"
         idle_discharge_threshold:
           name: Idle discharging threshold (W)
           description: Power threshold above which discharging is considered idle (e.g., 4 means 0W to +4W is idle).
@@ -82,7 +81,6 @@ blueprint:
               max: 1000
               step: 1
               mode: box
-              unit_of_measurement: "W"
         show_progress:
           name: Show progress bar
           description: Display a progress bar for the charge level.
@@ -201,20 +199,14 @@ variables:
     {%- endif -%}
 
 triggers:
-  - alias: Charge level changes
-    trigger: state
+  - trigger: state
     entity_id: !input battery_charge_entity
-    id: charge_changed
-  - alias: Power changes
-    trigger: state
+  - trigger: state
     entity_id: !input battery_power_entity
-    id: power_changed
   - trigger: homeassistant
     event: start
-    id: startup
   - trigger: time_pattern
     minutes: "/5"
-    id: refresh
 
 condition:
   - condition: template
