@@ -208,20 +208,19 @@ variables:
         13734
       {%- endif -%}
     {%- endif -%}
-  payload: |-
+  payload: >-
     {%- if charge >= 0 -%}
-      {%- set data = {
-        "text": charge ~ " %",
-        "icon": icon | int,
-        "iconMode": icon_mode
-      } -%}
-      {%- if show_progress -%}
-        {%- set data = data | combine({"progress": charge | int}) -%}
-      {%- endif -%}
-      {%- set data = data | combine({"repeat": message_repeat | int}) -%}
-      {{ data | tojson }}
+    {
+      "text": "{{ charge }} %",
+      "icon": {{ icon | int }},
+      "iconMode": "{{ icon_mode }}"
+      {%- if show_progress %},
+      "progress": {{ charge | int }}
+      {%- endif %},
+      "repeat": {{ message_repeat | int }}
+    }
     {%- else -%}
-      {{ '' }}
+    {{ '' }}
     {%- endif -%}
 
 triggers:
