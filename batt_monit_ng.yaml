@@ -211,10 +211,9 @@ variables:
   payload: >-
     {%- if charge >= 0 -%}
     {
-      
       "icon": {{ icon | int }},
       "iconMode": "{{ icon_mode }}",
-      "text": "{{ charge }} %",
+      "text": "{{ charge }} %"
       {%- if show_progress %},
       "progress": {{ charge | int }}
       {%- endif %},
