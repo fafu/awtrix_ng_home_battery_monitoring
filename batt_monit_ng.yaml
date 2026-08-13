@@ -200,18 +200,13 @@ variables:
       {{ '' }}
     {%- endif -%}
 
-trigger:
-  - alias: Battery turned on
-    platform: state
-    entity_id: light.awtrix_xxxxxx_matrix
-    state: on
-    id: matrix_on
+triggers:
   - alias: Charge level changes
-    platform: state
+    trigger: state
     entity_id: !input battery_charge_entity
     id: charge_changed
   - alias: Power changes
-    platform: state
+    trigger: state
     entity_id: !input battery_power_entity
     id: power_changed
   - trigger: homeassistant
