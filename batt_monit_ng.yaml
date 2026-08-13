@@ -87,6 +87,19 @@ blueprint:
           default: true
           selector:
             boolean: {}
+        icon_mode:
+          name: Icon mode
+          description: Choose how approaching scrolling text affects the icon.
+          default: push
+          selector:
+            select:
+              options:
+                - label: Don't move
+                  value: fixed
+                - label: Move with text once
+                  value: pushOnce
+                - label: Move with text
+                  value: push
         decimal_places:
           name: Decimal places
           description: Number of decimal places to display for charge level (0-2).
@@ -118,6 +131,7 @@ variables:
   idle_charge_threshold: !input idle_charge_threshold
   idle_discharge_threshold: !input idle_discharge_threshold
   show_progress: !input show_progress
+  icon_mode: !input icon_mode
   decimal_places: !input decimal_places
   message_repeat: !input message_repeat
   device_prefixes: |-
@@ -197,7 +211,8 @@ variables:
   payload: |-
     {%- if charge >= 0 -%}
       {%- set data = {
-        "text": charge ~ " %",
+        "text": charge ~ ",
+        "iconMode": icon_mode %",
         "icon": icon | int
       } -%}
       {%- if show_progress -%}
