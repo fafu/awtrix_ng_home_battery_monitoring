@@ -87,6 +87,16 @@ blueprint:
           default: true
           selector:
             boolean: {}
+        decimal_places:
+          name: Decimal places
+          description: Number of decimal places to display for charge level (0-2).
+          default: 1
+          selector:
+            number:
+              min: 0
+              max: 2
+              step: 1
+              mode: slider
         message_repeat:
           name: Display refresh rate
           description: How many times the display should refresh per change.
@@ -108,6 +118,7 @@ variables:
   idle_charge_threshold: !input idle_charge_threshold
   idle_discharge_threshold: !input idle_discharge_threshold
   show_progress: !input show_progress
+  decimal_places: !input decimal_places
   message_repeat: !input message_repeat
   device_prefixes: |-
     {%- set result = namespace(items=[]) -%}
@@ -124,7 +135,7 @@ variables:
   charge: |-
     {%- set charge_value = states(battery_charge_entity) | float(-1) -%}
     {%- if charge_value >= 0 -%}
-      {{ (charge_value | round(0)) | int }}
+      {{ charge_value | round(decimal_places) }}
     {%- else -%}
       -1
     {%- endif -%}
