@@ -44,9 +44,9 @@ blueprint:
           selector:
             entity:
               domain: sensor
-        battery_mode_entity:
-          name: Battery mode sensor
-          description: Select the sensor entity that provides the battery operating mode (e.g., "Charge", "Discharge", "Idle").
+        battery_power_entity:
+          name: Battery power sensor
+          description: Select the sensor entity that provides the battery power in watts. Negative values = charging, positive = discharging.
           selector:
             entity:
               domain: sensor
@@ -61,6 +61,28 @@ blueprint:
           default: battery
           selector:
             text: {}
+        idle_charge_threshold:
+          name: Idle charging threshold (W)
+          description: Power threshold below which charging is considered idle (e.g., -10 means -10W to 0W is idle).
+          default: -10
+          selector:
+            number:
+              min: -1000
+              max: 0
+              step: 1
+              mode: box
+              unit_of_measurement: "W"
+        idle_discharge_threshold:
+          name: Idle discharging threshold (W)
+          description: Power threshold above which discharging is considered idle (e.g., 4 means 0W to +4W is idle).
+          default: 4
+          selector:
+            number:
+              min: 0
+              max: 1000
+              step: 1
+              mode: box
+              unit_of_measurement: "W"
         show_progress:
           name: Show progress bar
           description: Display a progress bar for the charge level.
@@ -84,7 +106,9 @@ variables:
   device_ids: !input awtrix
   app_name: !input app_name
   battery_charge_entity: !input battery_charge_entity
-  battery_mode_entity: !input battery_mode_entity
+  battery_power_entity: !input battery_power_entity
+  idle_charge_threshold: !input idle_charge_threshold
+  idle_discharge_threshold: !input idle_discharge_threshold
   show_progress: !input show_progress
   message_repeat: !input message_repeat
   device_prefixes: |-
@@ -106,7 +130,17 @@ variables:
     {%- else -%}
       -1
     {%- endif -%}
-  mode: "{{ states(battery_mode_entity) | default('Unknown', true) }}"
+  power: |-
+    {%- set power_value = states(battery_power_entity) | float(0) -%}
+    {{ power_value | round(0) | int }}
+  mode: |-
+    {%- if power <= idle_charge_threshold and power >= (idle_discharge_threshold * -1) -%}
+      Idle
+    {%- elif power < idle_charge_threshold -%}
+      Charge
+    {%- else -%}
+      Discharge
+    {%- endif -%}
   icon: |-
     {%- if charge < 0 -%}
       13734
@@ -176,10 +210,10 @@ trigger:
     platform: state
     entity_id: !input battery_charge_entity
     id: charge_changed
-  - alias: Mode changes
+  - alias: Power changes
     platform: state
-    entity_id: !input battery_mode_entity
-    id: mode_changed
+    entity_id: !input battery_power_entity
+    id: power_changed
   - trigger: homeassistant
     event: start
     id: startup
